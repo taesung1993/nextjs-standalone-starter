@@ -19,6 +19,9 @@ jobs:
       - name: Print checkout success message
         run: echo "::notice::🍏 Checkout successful(completed git clone)"
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
