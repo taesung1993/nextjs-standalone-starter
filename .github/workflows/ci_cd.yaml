@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18, 20] # 노드 버전을 18, 20으로 설정해서 동시에 두 개의 버전이 빌드에 돌아가게 한다.
+        node-version: [20] # 노드 버전을 20으로 설정해서 빌드에 돌아가게 한다.
 
     steps:
       - name: Git clone
