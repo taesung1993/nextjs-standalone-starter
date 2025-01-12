@@ -7,9 +7,34 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18, 20] # 노드 버전을 18, 20으로 설정해서 동시에 두 개의 버전이 빌드에 돌아가게 한다.
+
     steps:
       - name: Git clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # 현재 저장소가 될 actions를 떙겨온다.
 
       - name: Print checkout success message
         run: echo "::notice::🍏 Checkout successful(completed git clone)"
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      - name: Cache node modules
+        uses: actions/cache@v4 # actions/cache를 사용하여 일일히 node_modules를 설치하지 않고 캐시를 사용한다.
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Project
+        run: pnpm build
