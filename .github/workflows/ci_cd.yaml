@@ -1,5 +1,5 @@
-name: Github Action CI/CD Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions
+name: Next.js Standalone CI/CD
+run-name: ${{ github.actor }} is practicing Next.js Deployment with GitHub Actions
 on:
   push:
     branches:
@@ -8,9 +8,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Git clone
         uses: actions/checkout@v4
-      - name: Run a script
-        run: |
-          ls ${{ github.workspace }}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+
+      - name: Print checkout success message
+        run: echo "::notice::🍏 Checkout successful(completed git clone)"
