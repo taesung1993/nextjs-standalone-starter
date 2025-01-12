@@ -20,7 +20,9 @@ jobs:
         run: echo "::notice::🍏 Checkout successful(completed git clone)"
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v4 # pnpm 설치 (cache: "pnpm" 옵션을 사용하기 위해서 필요하다.)
+        with:
+          version: 8.x
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
