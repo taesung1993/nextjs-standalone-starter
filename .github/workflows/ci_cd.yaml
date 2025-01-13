@@ -99,7 +99,7 @@ jobs:
           IMAGE_TAG: ${{ steps.package-version.outputs.current-version }}
         run: |
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
-          docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ls -al /usr/app
+          docker run --rm $REGISTRY/$REPOSITORY:$IMAGE_TAG ls -al /usr/app
 
 # name: Next.js Standalone CI/CD
 
