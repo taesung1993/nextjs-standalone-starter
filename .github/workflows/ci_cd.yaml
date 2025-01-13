@@ -6,6 +6,7 @@ on:
 
 env:
   ECR_REPOSITORY: nextjs-standalone-starter
+  TASK_DEFINITION: nextjs-standalone-starter-td
   IMAGE_TAG: latest
 
 jobs:
