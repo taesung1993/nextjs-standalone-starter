@@ -53,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Disable Next.js Telemetry
+        run: pnpm next telemetry disable
+
       # 빌드
       - name: Build Project
         run: pnpm build
