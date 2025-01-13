@@ -14,6 +14,6 @@ EXPOSE $PORT
 
 RUN npm install -g pnpm
 RUN pnpm install
-RUN pnpm run build
+RUN pnpm build
 
 ENTRYPOINT ["pnpm", "start"]
