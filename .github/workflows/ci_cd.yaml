@@ -70,7 +70,7 @@ jobs:
           provenance: false
 
       - name: Retrieve the image name
-        id: build-name
+        id: build-image
         run: |
           echo "::set-output name=image::$ECR_REGISTRY:$IMAGE_TAG"
 
