@@ -7,7 +7,7 @@ RUN mkdir -p /usr/app
 WORKDIR /usr/app
 
 COPY ./public ./public
-COPY /.next/standalone ./
+COPY ./.next/standalone ./
 
 EXPOSE $PORT
 
