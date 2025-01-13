@@ -1,163 +1,246 @@
-name: Next.js Standalone CI/CD
+name: build-image
 
 on:
   push:
     branches: [feature/standalone]
 
-env:
-  AWS_REGION: ap-northeast-2
-  CONTAINER_NAME: nextjs-standalone-starter-container
-  TASK_DEFINITION: nextjs-standalone-starter-td
-  ECR_REPOSITORY: nextjs-standalone-starter
-  ECS_CLUSTER: nextjs-standalone-starter
-  ECS_SERVICE: nextjs-standalone-starter-service
-  ECS_DG: DgpECS-nextjs-standalone-starter-nextjs-standalone-starter-service
-  ECS_APP: AppECS-nextjs-standalone-starter-nextjs-standalone-starter-service
-  ECS_APPSPEC: appspec.yml
-
 jobs:
   build-nextjs:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        node-version: [20]
-
+        node-version: [18.x, 20.x]
     steps:
-      # 현재 저장소가 될 actions를 떙겨온다.
-      - name: Git clone
-        uses: actions/checkout@v4
-
-      # pnpm 설치 (cache: "pnpm" 옵션을 사용하기 위해서 필요하다.)
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 8.x
+      - name: git clone
+        uses: actions/checkout@v3
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
 
-      # actions/cache를 사용하여 일일히 node_modules를 설치하지 않고 캐시를 사용한다.
-      - name: Cache node modules
-        uses: actions/cache@v4
-        id: pnpm-cache
+      - name: Cache node moudles
+        uses: actions/cache@v3
+        id: pnpm-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
         with:
           path: "**/node_modules"
           key: ${{ runner.os }}-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
 
-      # 의존성 설치
-      - name: Install dependencies
+      - name: Install Dependencies
         run: pnpm install
 
       - name: Disable Next.js Telemetry
         run: pnpm next telemetry disable
 
-      # 빌드
-      - name: Build Project
+      - name: Build project
         run: pnpm build
 
-      - name: Upload build result
+      - name: Upload built result
+        if: matrix.node-version == '18.x'
         uses: actions/upload-artifact@v3
         with:
-          name: next-built-${{github.sha}}
-          retention-days: 5 # Github Actions 서버에 보관되는 기간
-          path: | # 업로드할 디렉토리 경로 지정
+          name: next-built-${{ github.sha }}
+          retention-days: 5
+          path: |
             .next/standalone/*
             .next/static/*
             public/*
 
   build-docker:
+    if: github.ref == 'refs/heads/main'
     needs: [build-nextjs]
     runs-on: ubuntu-latest
     steps:
-      # 현재 저장소가 될 actions를 떙겨온다.
-      - name: Git clone
-        uses: actions/checkout@v4
+      - name: git clone
+        uses: actions/checkout@v3
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Use Node.js 18.x
+        uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 18.x
 
-      # package.json의 버전을 가져온다.
       - name: get-npm-version
         id: package-version
         uses: martinbeentjes/npm-get-version-action@v1.3.1
 
-      # 이전에 업로드했던 디렉토리를 다운로드 한다.
       - name: Download built result
         uses: actions/download-artifact@v3
         with:
           name: next-built-${{ github.sha }}
 
-      # 다운로드된 경로 확인
-      - name: Check downloaded directories
-        run: |
-          echo "Downloaded files:"
-          ls -al
-          echo "Standalone build files:"
-          ls -al .next/standalone
-          echo "Static files:"
-          ls -al .next/static
-          echo "Public files:"
-          ls -al public
-
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}}
-          aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
-          aws-region: ${{env.AWS_REGION}}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
 
-      # Github Action 로그에 Docker 비밀번호가 표시되지 않는다.
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@v1
         with:
           mask-password: "true"
 
       # - name: Sync static files with S3
-      #   env:
-      #     MAX_AGE: ${{ vars.CACHE_CONTROL_MAX_AGE }}
-      #   run: aws s3 sync .next/static s3://${{ vars.S3_BUCKET }}/${{ steps.package-version.outputs.current-version }}/_next/static --cache-control max-age=$MAX_AGE,public,immutable
-      - name: Build, tag, and push image to ECR
-        id: build-image
+      # env:
+      # MAX_AGE: ${{ vars.CACHE_CONTROL_MAX_AGE }}
+      # run: aws s3 sync .next/static s3://${{ vars.S3_BUCKET }}/${{ steps.package-version.outputs.current-version }}/_next/static --cache-control max-age=$MAX_AGE,public,immutable
+
+      - name: Build and push docker image to Amazon ECR
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: nextjs-standalone-starter
           IMAGE_TAG: ${{ steps.package-version.outputs.current-version }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ls -al /usr/app
 
-        # docker tag $REGISTRY/$REPOSITORY:$IMAGE_TAG $REGISTRY/$REPOSITORY:latest
-        # docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
-        # docker push $REGISTRY/$REPOSITORY:latest
+# name: Next.js Standalone CI/CD
 
-      # - name: Download task definition
-      #   run: |
-      #     aws ecs describe-task-definition \
-      #       --task-definition ${{ env.TASK_DEFINITION }} \
-      #       --query 'taskDefinition' \
-      #       > task-definition.json
+# on:
+#   push:
+#     branches: [feature/standalone]
 
-      # - name: Fill in the new image ID in the Amazon ECS task definition
-      #   id: task-def
-      #   uses: aws-actions/amazon-ecs-render-task-definition@v1
-      #   with:
-      #     task-definition: task-definition.json
-      #     container-name: ${{ env.CONTAINER_NAME }}
-      #     image: ${{ steps.build-image.outputs.image }}
+# env:
+#   AWS_REGION: ap-northeast-2
+#   CONTAINER_NAME: nextjs-standalone-starter-container
+#   TASK_DEFINITION: nextjs-standalone-starter-td
+#   ECR_REPOSITORY: nextjs-standalone-starter
+#   ECS_CLUSTER: nextjs-standalone-starter
+#   ECS_SERVICE: nextjs-standalone-starter-service
+#   ECS_DG: DgpECS-nextjs-standalone-starter-nextjs-standalone-starter-service
+#   ECS_APP: AppECS-nextjs-standalone-starter-nextjs-standalone-starter-service
+#   ECS_APPSPEC: appspec.yml
 
-      # - name: Deploy Amazon ECS task definition
-      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-      #   with:
-      #     task-definition: ${{ steps.task-def.outputs.task-definition }}
-      #     service: ${{ env.ECS_SERVICE }}
-      #     cluster: ${{ env.ECS_CLUSTER }}
-      #     wait-for-service-stability: true
-      #     codedeploy-appspec: ${{ env.ECS_APPSPEC }}
-      #     codedeploy-application: ${{ env.ECS_APP }}
-      #     codedeploy-deployment-group: ${{ env.ECS_DG }}
+# jobs:
+#   build-nextjs:
+#     runs-on: ubuntu-latest
+
+#     strategy:
+#       matrix:
+#         node-version: [20]
+
+#     steps:
+#       # 현재 저장소가 될 actions를 떙겨온다.
+#       - name: Git clone
+#         uses: actions/checkout@v4
+
+#       # pnpm 설치 (cache: "pnpm" 옵션을 사용하기 위해서 필요하다.)
+#       - name: Install pnpm
+#         uses: pnpm/action-setup@v4
+#         with:
+#           version: 8.x
+
+#       - name: Use Node.js ${{ matrix.node-version }}
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: ${{ matrix.node-version }}
+#           cache: "pnpm"
+
+#       # actions/cache를 사용하여 일일히 node_modules를 설치하지 않고 캐시를 사용한다.
+#       - name: Cache node modules
+#         uses: actions/cache@v4
+#         with:
+#           path: ~/.pnpm-store
+#           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+#           restore-keys: |
+#             ${{ runner.os }}-pnpm-
+
+#       # 의존성 설치
+#       - name: Install dependencies
+#         run: pnpm install
+
+#       # 빌드
+#       - name: Build Project
+#         run: pnpm build
+
+#       - name: Upload build result
+#         uses: actions/upload-artifact@v3
+#         with:
+#           name: next-built-${{github.sha}}
+#           retention-days: 5 # Github Actions 서버에 보관되는 기간
+#           path: | # 업로드할 디렉토리 경로 지정
+#             .next/standalone/*
+#             .next/static/*
+#             public/*
+
+#   build-docker:
+#     needs: [build-nextjs]
+#     runs-on: ubuntu-latest
+#     steps:
+#       # 현재 저장소가 될 actions를 떙겨온다.
+#       - name: Git clone
+#         uses: actions/checkout@v4
+
+#       - name: Use Node.js ${{ matrix.node-version }}
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: ${{ matrix.node-version }}
+
+#       # package.json의 버전을 가져온다.
+#       - name: get-npm-version
+#         id: package-version
+#         uses: martinbeentjes/npm-get-version-action@v1.3.1
+
+#       # 이전에 업로드했던 디렉토리를 다운로드 한다.
+#       - name: Download built result
+#         uses: actions/download-artifact@v3
+#         with:
+#           name: next-built-${{ github.sha }}
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}}
+#           aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+#           aws-region: ${{env.AWS_REGION}}
+
+#       # Github Action 로그에 Docker 비밀번호가 표시되지 않는다.
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v2
+#         with:
+#           mask-password: "true"
+
+#       - name: Sync static files with S3
+#         env:
+#           MAX_AGE: ${{ vars.CACHE_CONTROL_MAX_AGE }}
+#         run: aws s3 sync .next/static s3://${{ vars.S3_BUCKET }}/${{ steps.package-version.outputs.current-version }}/_next/static --cache-control max-age=$MAX_AGE,public,immutable
+
+#       - name: Build, tag, and push image to ECR
+#         id: build-image
+#         env:
+#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#           IMAGE_TAG: ${{ steps.package-version.outputs.current-version }}
+#         run: |
+#           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+#           docker tag $REGISTRY/$REPOSITORY:$IMAGE_TAG $REGISTRY/$REPOSITORY:latest
+#           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+#           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+#       - name: Download task definition
+#         run: |
+#           aws ecs describe-task-definition \
+#             --task-definition ${{ env.TASK_DEFINITION }} \
+#             --query 'taskDefinition' \
+#             > task-definition.json
+
+#       - name: Fill in the new image ID in the Amazon ECS task definition
+#         id: task-def
+#         uses: aws-actions/amazon-ecs-render-task-definition@v1
+#         with:
+#           task-definition: task-definition.json
+#           container-name: ${{ env.CONTAINER_NAME }}
+#           image: ${{ steps.build-image.outputs.image }}
+
+#       - name: Deploy Amazon ECS task definition
+#         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+#         with:
+#           task-definition: ${{ steps.task-def.outputs.task-definition }}
+#           service: ${{ env.ECS_SERVICE }}
+#           cluster: ${{ env.ECS_CLUSTER }}
+#           wait-for-service-stability: true
+#           codedeploy-appspec: ${{ env.ECS_APPSPEC }}
+#           codedeploy-application: ${{ env.ECS_APP }}
+#           codedeploy-deployment-group: ${{ env.ECS_DG }}
