@@ -54,7 +54,6 @@ jobs:
             public/*
 
   build-docker:
-    if: github.ref == 'refs/heads/main'
     needs: [build-nextjs]
     runs-on: ubuntu-latest
     steps:
