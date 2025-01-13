@@ -1,14 +1,19 @@
 FROM node:20-alpine
 
+
+ENV PORT 80
+
 RUN mkdir -p /usr/app
 WORKDIR /usr/app
 
-COPY node_modules node_modules
 COPY package.json package.json
 COPY public public
 COPY .next .next
 COPY next.config.ts next.config.ts
 
-EXPOSE 80
+EXPOSE $PORT
+
+RUN npm install -g pnpm
+RUN pnpm install
 
 ENTRYPOINT ["pnpm", "start"]

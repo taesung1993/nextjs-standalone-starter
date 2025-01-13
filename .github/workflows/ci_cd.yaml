@@ -4,42 +4,62 @@ on:
   push:
     branches:
       - main
+
+env:
+  AWS_REGION: ap-northeast-2
+  CONTAINER_NAME: nextjs-standalone-starter-container
+  ECR_REPOSITORY: nextjs-standalone-starter
+  ECS_CLUSTER: nextjs-standalone-starter
+  ECS_SERVICE: nextjs-standalone-starter-service
+  ECS_DG: DgpECS-nextjs-standalone-starter-nextjs-standalone-starter-service
+  ECS_APP: AppECS-nextjs-standalone-starter-nextjs-standalone-starter-service
+  ECS_APPSPEC: appspec.yml
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [20] # 노드 버전을 20으로 설정해서 빌드에 돌아가게 한다.
 
     steps:
       - name: Git clone
         uses: actions/checkout@v4 # 현재 저장소가 될 actions를 떙겨온다.
 
-      - name: Print checkout success message
-        run: echo "::notice::🍏 Checkout successful(completed git clone)"
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4 # pnpm 설치 (cache: "pnpm" 옵션을 사용하기 위해서 필요하다.)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          version: 8.x
+          aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}}
+          aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+          aws-region: ${{env.AWS_REGION}}
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Build, tag, and push image to ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: latest
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ env.TASK_DEFINITION }} \
+          --query taskDefinition > task-definition.json
+
+      - name: Update task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
+          task-definition: task-definition.json
+          container-name: ${{env.CONTAINER_NAME}}
+          image: ${{ steps.build-image.outputs.image }}
 
-      - name: Cache node modules
-        uses: actions/cache@v4 # actions/cache를 사용하여 일일히 node_modules를 설치하지 않고 캐시를 사용한다.
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build Project
-        run: pnpm build
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          codedeploy-appspec: ${{ env.ECS_APPSPEC }}
+          codedeploy-application: ${{ env.ECS_APP }}
+          codedeploy-deployment-group: ${{ env.ECS_DG }}
