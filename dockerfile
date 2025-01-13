@@ -6,14 +6,11 @@ ENV PORT 80
 RUN mkdir -p /usr/app
 WORKDIR /usr/app
 
-COPY node_modules node_modules
-COPY package.json package.json
-COPY public public
-COPY .next .next
-COPY next.config.ts next.config.ts
+COPY ./public ./public
+COPY /.next/standalone ./
 
 EXPOSE $PORT
 
 RUN npm install -g pnpm
 
-ENTRYPOINT ["pnpm", "start"]
+ENTRYPOINT ["node", "server.js"]

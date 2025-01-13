@@ -6,4 +6,4 @@ const nextConfig: NextConfig = {
   assetPrefix: `${process.env.CDN_BASE_URL}/${packageVersion}`,
 };
 
-export default process.env.NODE_ENV === "production" ? {} : nextConfig;
+export default process.env.NODE_ENV === "production" ? nextConfig : {};
