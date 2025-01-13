@@ -13,6 +13,7 @@ env:
   ECS_APPSPEC: appspec.yml
   ECS_APP: AppECS-nextjs-standalone-starter-nextjs-standalone-starter-service
   ECS_DG: DgpECS-nextjs-standalone-starter-nextjs-standalone-starter-service
+  ECR_REGISTRY: 448049808269.dkr.ecr.ap-northeast-2.amazonaws.com/nextjs-standalone-starter
   IMAGE_TAG: latest
 
 jobs:
@@ -72,7 +73,7 @@ jobs:
       - name: Retrieve the image name
         id: build-image
         run: |
-          echo "::set-output name=image::$${{steps.login-ecr.outputs.registry}}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG"
+          echo "::set-output name=image::$ECR_REGISTRY:$IMAGE_TAG"
 
       - name: Sync static files with S3
         env:
