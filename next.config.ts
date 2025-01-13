@@ -3,6 +3,7 @@ import { version as packageVersion } from "./package.json";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: "standalone",
   assetPrefix: `${process.env.CDN_BASE_URL}/${packageVersion}`,
 };
 
