@@ -38,6 +38,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      # actions/cache를 사용하여 일일히 node_modules를 설치하지 않고 캐시를 사용한다.
+      - name: Cache node modules
+        uses: actions/cache@v4
+        id: pnpm-cache
+        with:
+          path: "**/node_modules"
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
       # 의존성 설치
       - name: Install dependencies
