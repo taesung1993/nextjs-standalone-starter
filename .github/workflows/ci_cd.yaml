@@ -84,7 +84,7 @@ jobs:
           aws ecs describe-task-definition \
             --task-definition ${{ env.TASK_DEFINITION }} \
             --query 'taskDefinition' \
-            --output json > task-definition.json
+            > task-definition.json
 
       - name: Update task definition
         id: task-def
