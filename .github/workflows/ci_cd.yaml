@@ -8,6 +8,7 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   CONTAINER_NAME: nextjs-standalone-starter-container
+  TASK_DEFINITION: nextjs-standalone-starter-td
   ECR_REPOSITORY: nextjs-standalone-starter
   ECS_CLUSTER: nextjs-standalone-starter
   ECS_SERVICE: nextjs-standalone-starter-service
@@ -80,7 +81,8 @@ jobs:
 
       - name: Download task definition
         run: |
-          aws ecs describe-task-definition --task-definition ${{ env.TASK_DEFINITION }} \
+          aws ecs describe-task-definition \
+          --task-definition ${{ env.TASK_DEFINITION }} \
           --query taskDefinition > task-definition.json
 
       - name: Update task definition
