@@ -46,7 +46,7 @@ jobs:
         id: pnpm-cache
         with:
           path: "**/node_modules"
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       # 의존성 설치
       - name: Install dependencies
