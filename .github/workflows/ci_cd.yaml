@@ -72,7 +72,7 @@ jobs:
       - name: Retrieve the image name
         id: build-image
         run: |
-          echo "::set-output name=image::$${{steps.login-ecr.outputs.registry}}/${{ env.ECR_REPOSITORY }}::$IMAGE_TAG"
+          echo "::set-output name=image::$${{steps.login-ecr.outputs.registry}}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG"
 
       - name: Sync static files with S3
         env:
