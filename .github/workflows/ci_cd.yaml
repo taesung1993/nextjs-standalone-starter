@@ -7,6 +7,12 @@ on:
 env:
   ECR_REPOSITORY: nextjs-standalone-starter
   TASK_DEFINITION: nextjs-standalone-starter-td
+  CONTAINER_NAME: nextjs-standalone-starter-container
+  ECS_SERVICE: nextjs-standalone-starter-service
+  ECS_CLUSTER: nextjs-standalone-starter
+  ECS_APPSPEC: appspec.yml
+  ECS_APP: AppECS-nextjs-standalone-starter-nextjs-standalone-starter-service
+  ECS_DG: DgpECS-nextjs-standalone-starter-nextjs-standalone-starter-service
   IMAGE_TAG: latest
 
 jobs:
