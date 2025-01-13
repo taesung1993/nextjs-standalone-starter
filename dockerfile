@@ -9,6 +9,6 @@ COPY public public
 COPY .next .next
 COPY next.config.ts next.config.ts
 
-EXPOSE 3000
+EXPOSE 80
 
 ENTRYPOINT ["pnpm", "start"]
