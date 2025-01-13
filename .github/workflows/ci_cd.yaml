@@ -1,9 +1,8 @@
 name: Next.js Standalone CI/CD
-run-name: ${{ github.actor }} is practicing Next.js Deployment with GitHub Actions
+
 on:
   push:
-    branches:
-      - [feature/standalone]
+    branches: [feature/standalone]
 
 env:
   AWS_REGION: ap-northeast-2
