@@ -103,35 +103,36 @@ jobs:
           echo "Public files:"
           ls -al public
 
-      # - name: Configure AWS credentials
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}}
-      #     aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
-      #     aws-region: ${{env.AWS_REGION}}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}}
+          aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+          aws-region: ${{env.AWS_REGION}}
 
-      # # Github Action 로그에 Docker 비밀번호가 표시되지 않는다.
-      # - name: Login to Amazon ECR
-      #   id: login-ecr
-      #   uses: aws-actions/amazon-ecr-login@v2
-      #   with:
-      #     mask-password: "true"
+      # Github Action 로그에 Docker 비밀번호가 표시되지 않는다.
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: "true"
 
       # - name: Sync static files with S3
       #   env:
       #     MAX_AGE: ${{ vars.CACHE_CONTROL_MAX_AGE }}
       #   run: aws s3 sync .next/static s3://${{ vars.S3_BUCKET }}/${{ steps.package-version.outputs.current-version }}/_next/static --cache-control max-age=$MAX_AGE,public,immutable
+      - name: Build, tag, and push image to ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.package-version.outputs.current-version }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ls -al /usr/app
 
-      # - name: Build, tag, and push image to ECR
-      #   id: build-image
-      #   env:
-      #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-      #     IMAGE_TAG: ${{ steps.package-version.outputs.current-version }}
-      #   run: |
-      #     docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-      #     docker tag $REGISTRY/$REPOSITORY:$IMAGE_TAG $REGISTRY/$REPOSITORY:latest
-      #     docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
-      #     docker push $REGISTRY/$REPOSITORY:latest
+        # docker tag $REGISTRY/$REPOSITORY:$IMAGE_TAG $REGISTRY/$REPOSITORY:latest
+        # docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+        # docker push $REGISTRY/$REPOSITORY:latest
 
       # - name: Download task definition
       #   run: |
