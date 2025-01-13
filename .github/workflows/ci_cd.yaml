@@ -91,57 +91,70 @@ jobs:
         with:
           name: next-built-${{ github.sha }}
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}}
-          aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
-          aws-region: ${{env.AWS_REGION}}
-
-      # Github Action 로그에 Docker 비밀번호가 표시되지 않는다.
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          mask-password: "true"
-
-      - name: Sync static files with S3
-        env:
-          MAX_AGE: ${{ vars.CACHE_CONTROL_MAX_AGE }}
-        run: aws s3 sync .next/static s3://${{ vars.S3_BUCKET }}/${{ steps.package-version.outputs.current-version }}/_next/static --cache-control max-age=$MAX_AGE,public,immutable
-
-      - name: Build, tag, and push image to ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+      # 다운로드된 경로 확인
+      - name: Check downloaded directories
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Downloaded files:"
+          ls -al
+          echo "Standalone build files:"
+          ls -al .next/standalone
+          echo "Static files:"
+          ls -al .next/static
+          echo "Public files:"
+          ls -al public
 
-      - name: Download task definition
-        run: |
-          aws ecs describe-task-definition \
-            --task-definition ${{ env.TASK_DEFINITION }} \
-            --query 'taskDefinition' \
-            > task-definition.json
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}}
+      #     aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+      #     aws-region: ${{env.AWS_REGION}}
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition.json
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.build-image.outputs.image }}
+      # # Github Action 로그에 Docker 비밀번호가 표시되지 않는다.
+      # - name: Login to Amazon ECR
+      #   id: login-ecr
+      #   uses: aws-actions/amazon-ecr-login@v2
+      #   with:
+      #     mask-password: "true"
 
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          codedeploy-appspec: ${{ env.ECS_APPSPEC }}
-          codedeploy-application: ${{ env.ECS_APP }}
-          codedeploy-deployment-group: ${{ env.ECS_DG }}
+      # - name: Sync static files with S3
+      #   env:
+      #     MAX_AGE: ${{ vars.CACHE_CONTROL_MAX_AGE }}
+      #   run: aws s3 sync .next/static s3://${{ vars.S3_BUCKET }}/${{ steps.package-version.outputs.current-version }}/_next/static --cache-control max-age=$MAX_AGE,public,immutable
+
+      # - name: Build, tag, and push image to ECR
+      #   id: build-image
+      #   env:
+      #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      #     IMAGE_TAG: ${{ steps.package-version.outputs.current-version }}
+      #   run: |
+      #     docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+      #     docker tag $REGISTRY/$REPOSITORY:$IMAGE_TAG $REGISTRY/$REPOSITORY:latest
+      #     docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+      #     docker push $REGISTRY/$REPOSITORY:latest
+
+      # - name: Download task definition
+      #   run: |
+      #     aws ecs describe-task-definition \
+      #       --task-definition ${{ env.TASK_DEFINITION }} \
+      #       --query 'taskDefinition' \
+      #       > task-definition.json
+
+      # - name: Fill in the new image ID in the Amazon ECS task definition
+      #   id: task-def
+      #   uses: aws-actions/amazon-ecs-render-task-definition@v1
+      #   with:
+      #     task-definition: task-definition.json
+      #     container-name: ${{ env.CONTAINER_NAME }}
+      #     image: ${{ steps.build-image.outputs.image }}
+
+      # - name: Deploy Amazon ECS task definition
+      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      #   with:
+      #     task-definition: ${{ steps.task-def.outputs.task-definition }}
+      #     service: ${{ env.ECS_SERVICE }}
+      #     cluster: ${{ env.ECS_CLUSTER }}
+      #     wait-for-service-stability: true
+      #     codedeploy-appspec: ${{ env.ECS_APPSPEC }}
+      #     codedeploy-application: ${{ env.ECS_APP }}
+      #     codedeploy-deployment-group: ${{ env.ECS_DG }}
