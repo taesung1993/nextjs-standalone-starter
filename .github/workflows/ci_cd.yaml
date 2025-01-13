@@ -3,7 +3,7 @@ run-name: ${{ github.actor }} is practicing Next.js Deployment with GitHub Actio
 on:
   push:
     branches:
-      - main
+      - [feature/standalone]
 
 env:
   AWS_REGION: ap-northeast-2
@@ -17,7 +17,7 @@ env:
   ECS_APPSPEC: appspec.yml
 
 jobs:
-  build:
+  build-nextjs:
     runs-on: ubuntu-latest
 
     strategy:
@@ -58,6 +58,40 @@ jobs:
       - name: Build Project
         run: pnpm build
 
+      - name: Upload build result
+        uses: actions/upload-artifact@v3
+        with:
+          name: next-built-${{github.sha}}
+          retention-days: 5 # Github Actions 서버에 보관되는 기간
+          path: | # 업로드할 디렉토리 경로 지정
+            .next/standalone/*
+            .next/static/*
+            public/*
+
+  build-docker:
+    needs: [build-nextjs]
+    runs-on: ubuntu-latest
+    steps:
+      # 현재 저장소가 될 actions를 떙겨온다.
+      - name: Git clone
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # package.json의 버전을 가져온다.
+      - name: get-npm-version
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@v1.3.1
+
+      # 이전에 업로드했던 디렉토리를 다운로드 한다.
+      - name: Download built result
+        uses: actions/download-artifact@v3
+        with:
+          name: next-built-${{ github.sha }}
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -65,9 +99,17 @@ jobs:
           aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
           aws-region: ${{env.AWS_REGION}}
 
+      # Github Action 로그에 Docker 비밀번호가 표시되지 않는다.
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: "true"
+
+      - name: Sync static files with S3
+        env:
+          MAX_AGE: ${{ vars.CACHE_CONTROL_MAX_AGE }}
+        run: aws s3 sync .next/static s3://${{ vars.S3_BUCKET }}/${{ steps.package-version.outputs.current-version }}/_next/static --cache-control max-age=$MAX_AGE,public,immutable
 
       - name: Build, tag, and push image to ECR
         id: build-image
