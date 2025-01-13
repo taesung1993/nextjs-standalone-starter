@@ -11,6 +11,4 @@ COPY /.next/standalone ./
 
 EXPOSE $PORT
 
-RUN npm install -g pnpm
-
 ENTRYPOINT ["node", "server.js"]
