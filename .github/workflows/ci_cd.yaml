@@ -58,7 +58,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        id: build-image
+        id: docker_build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -68,6 +68,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+
+      - name: Retrieve the image name
+        id: build-name
+        run: |
+          echo "::set-output name=image::$ECR_REGISTRY:$IMAGE_TAG"
 
       - name: Sync static files with S3
         env:
