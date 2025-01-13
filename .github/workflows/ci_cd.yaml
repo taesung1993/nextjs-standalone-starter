@@ -2,7 +2,7 @@ name: build-image
 
 on:
   push:
-    branches: [feature/standalone]
+    branches: [main]
 
 env:
   ECR_REPOSITORY: nextjs-standalone-starter
